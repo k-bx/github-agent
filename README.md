@@ -1,5 +1,16 @@
 # github-agent
 
+Many of us enjoy working on a project where issues are detailed,
+well-written and kept up to date. There's just one problem with that:
+editing issues is not fun.
+
+With GitHub Agent, you can sync your issues as text files to some
+local folder, in fact maintain them as a git repo, use your favorite
+editor for editing, and run a periodic "sync" command doing the least
+surprising job at syncing the issues.
+
+## Usage
+
 Copy `config.json.example` to `config.json` for usage.
 
 Usage:
