@@ -2,3 +2,6 @@ stack.yaml.lock
 .stack-work
 TAGS
 github-agent.cabal
+config.json
+.dir-locals.el
+*~

@@ -13,7 +13,12 @@ extra-source-files:
 
 dependencies:
   - base >= 4.7 && < 5
+  - aeson
+  - github
+  - string-class
+  - optparse-applicative
   - rio
+  - text
 
 default-extensions:
   - AutoDeriveTypeable
