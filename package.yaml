@@ -1,0 +1,81 @@
+name:                github-agent
+version:             0.1.0.0
+#synopsis:
+#description:
+homepage:            https://github.com/k-bx/github-agent#readme
+license:             BSD3
+author:              Kostiantyn Rybnikov
+maintainer:          k-bx@k-bx.com
+copyright:           2019 Kostiantyn Rybnikov
+category:            GitHub, Web, Command Line
+extra-source-files:
+- README.md
+
+dependencies:
+  - base >= 4.7 && < 5
+  - rio
+
+default-extensions:
+  - AutoDeriveTypeable
+  - ApplicativeDo
+  - BangPatterns
+  - BinaryLiterals
+  - ConstraintKinds
+  - DataKinds
+  - DefaultSignatures
+  - DeriveDataTypeable
+  - DeriveFoldable
+  - DeriveFunctor
+  - DeriveGeneric
+  - DeriveTraversable
+  - DerivingVia
+  - DoAndIfThenElse
+  - EmptyDataDecls
+  - ExistentialQuantification
+  - FlexibleContexts
+  - FlexibleInstances
+  - FunctionalDependencies
+  - GADTs
+  - GeneralizedNewtypeDeriving
+  - InstanceSigs
+  - KindSignatures
+  - LambdaCase
+  - MonadFailDesugaring
+  - MultiParamTypeClasses
+  - MultiWayIf
+  - NamedFieldPuns
+  - NoImplicitPrelude
+  - OverloadedStrings
+  - PartialTypeSignatures
+  - PatternGuards
+  - PolyKinds
+  - RankNTypes
+  - RecordWildCards
+  - ScopedTypeVariables
+  - StandaloneDeriving
+  - TupleSections
+  - TypeApplications
+  - TypeFamilies
+  - TypeSynonymInstances
+  - ViewPatterns
+
+library:
+  source-dirs: src
+  ghc-options: &ghc-options -Wall
+               -Werror
+               -Wcompat
+               -Wincomplete-record-updates
+               -Wincomplete-uni-patterns
+               -Wno-redundant-constraints
+               -Wno-name-shadowing
+               -Wno-orphans
+               -optP-Wno-nonportable-include-path
+               -threaded
+               -with-rtsopts=-N
+
+executables:
+  github-agent:
+    main:             app/Main.hs
+    dependencies:
+      - github-agent
+    ghc-options: *ghc-options
