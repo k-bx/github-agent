@@ -11,7 +11,7 @@ job at syncing the issues.
 
 ## Usage
 
-Copy `config.json.example` to `config.json` for usage.
+Copy `config.json.example` to `~/.github-agent.json` for usage.
 
 Usage:
 

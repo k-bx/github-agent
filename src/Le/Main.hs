@@ -153,7 +153,9 @@ syncIssuesOut = do
   commitAll cfg
 
 readConfig :: IO Config
-readConfig = eitherSErr <$> J.eitherDecodeFileStrict "config.json"
+readConfig = do
+  h <- System.Directory.getHomeDirectory
+  eitherSErr <$> (J.eitherDecodeFileStrict (h <> "/.github-agent.json"))
 
 logI :: String -> IO ()
 logI = Prelude.putStrLn
