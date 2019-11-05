@@ -14,13 +14,15 @@ extra-source-files:
 dependencies:
   - base >= 4.7 && < 5
   - aeson
-  - github
-  - string-class
-  - typed-process
   - bytestring
+  - directory
+  - github
   - optparse-applicative
   - rio
+  - string-class
   - text
+  - time
+  - typed-process
 
 default-extensions:
   - AutoDeriveTypeable

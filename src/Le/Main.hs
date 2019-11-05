@@ -5,13 +5,17 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.String.Class as S
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
+import qualified Data.Time
+import qualified Data.Time.Format
 import qualified GitHub.Auth
 import qualified GitHub.Data.Definitions
+import qualified GitHub.Data.Id
 import qualified GitHub.Data.Issues
 import qualified GitHub.Endpoints.Issues
 import Le.Import
 import Options.Applicative
 import qualified Prelude
+import qualified System.Directory
 import System.Process.Typed (proc, readProcess_, runProcess_, setWorkingDir)
 
 data Config =
@@ -47,31 +51,33 @@ cmd n d p = command n (info p (progDesc d))
 
 syncIssuesIn :: IO ()
 syncIssuesIn = do
-  Config {..} <- readConfig
-  when False $ do
-    issues <-
-      eitherSErr <$>
-      GitHub.Endpoints.Issues.issuesForRepo'
-        (Just (GitHub.Auth.OAuth (S.fromText cfgAuth)))
-        cfgOwnerName
-        cfgRepoName
-        mempty
-    forM_ issues $ \issue -> do
-      let outfp =
-            cfgDataDir <> "/" <>
-            show
-              (GitHub.Data.Definitions.unIssueNumber
-                 (GitHub.Data.Issues.issueNumber issue) :: Int) <>
-            ".md"
-      logI $ "> Writing: " <> outfp
-      T.writeFile outfp (fromMaybe "" (GitHub.Data.Issues.issueBody issue))
+  cfg@Config {..} <- readConfig
+  issues <-
+    eitherSErr <$>
+    GitHub.Endpoints.Issues.issuesForRepo'
+      (Just (GitHub.Auth.OAuth (S.fromText cfgAuth)))
+      cfgOwnerName
+      cfgRepoName
+      mempty
+  forM_ issues $ \issue -> do
+    let outfp =
+          cfgDataDir <> "/" <>
+          show
+            (GitHub.Data.Definitions.unIssueNumber
+               (GitHub.Data.Issues.issueNumber issue) :: Int) <>
+          ".md"
+    logI $ "> Writing: " <> outfp
+    T.writeFile outfp (fromMaybe "" (GitHub.Data.Issues.issueBody issue))
+  commitAll cfg
+
+commitAll :: Config -> IO ()
+commitAll Config {..} = do
   logI $ "> Commiting changes"
   let runP_ = runProcess_ . setWorkingDir cfgDataDir
       readP_ = readProcess_ . setWorkingDir cfgDataDir
   runP_ (proc "git" ["status", "--porcelain=v1"])
   (out, _) <- readP_ $ (proc "git" ["status", "-z"])
-  let entries :: [[Text]]
-      entries =
+  let entries =
         BL.split 0 out |> map S.toText |> filter ((/= "") . T.strip . S.toText) |>
         map (T.splitOn " ")
   logI $ show entries
@@ -85,8 +91,66 @@ syncIssuesIn = do
   logI $ "> Commiting"
   runP_ $ proc "git" ["commit", "-m", "sync", "."]
 
+-- | Whitelist of issue numbers. Just for safety
+whitelist :: [Int]
+whitelist = [80]
+
 syncIssuesOut :: IO ()
-syncIssuesOut = undefined
+syncIssuesOut = do
+  cfg@Config {..} <- readConfig
+  let readP_ = readProcess_ . setWorkingDir cfgDataDir
+  (out, _) <- readP_ $ (proc "git" ["status", "-z"])
+  let entries =
+        BL.split 0 out |> map S.toText |> filter ((/= "") . T.strip . S.toText) |>
+        map (T.splitOn " ")
+  logI $ show entries
+  forM_ entries $ \entry -> do
+    case entry of
+      ["", "M", fname] -> do
+        let issueId :: Int
+            issueId = Prelude.read (S.toString (T.dropEnd 3 fname))
+        when (not (issueId `elem` whitelist)) $ do
+          logI $ "Skipping non-whitelist issue: " <> show issueId
+        when (issueId `elem` whitelist) $ do
+          logI $ "> Editing issue on GitHub: " <> show issueId
+          newBody <- T.readFile (cfgDataDir <> "/" <> show issueId <> ".md")
+          System.Directory.createDirectoryIfMissing False $
+            cfgDataDir <> "/backup"
+          logI $ "> Getting info and backing up"
+          issue <-
+            eitherSErr <$>
+            GitHub.Endpoints.Issues.issue'
+              (Just (GitHub.Auth.OAuth (S.fromText cfgAuth)))
+              cfgOwnerName
+              cfgRepoName
+              (GitHub.Data.Id.Id issueId)
+          t <- Data.Time.getCurrentTime
+          let stamp =
+                Data.Time.Format.formatTime
+                  Data.Time.Format.defaultTimeLocale
+                  "%F-%X"
+                  t
+          let bakfp = cfgDataDir <> "/backup/" <> show issueId <> "-" <> stamp
+          logI $ "> Writing backup in " <> bakfp
+          T.writeFile bakfp (fromMaybe "" (GitHub.Data.Issues.issueBody issue))
+          logI $ "> Doing the update"
+          eitherSErr <$>
+            GitHub.Endpoints.Issues.editIssue
+              (GitHub.Auth.OAuth (S.fromText cfgAuth))
+              cfgOwnerName
+              cfgRepoName
+              (GitHub.Data.Id.Id issueId)
+              (GitHub.Data.Issues.EditIssue
+                 { editIssueTitle = Nothing
+                 , editIssueBody = Just newBody
+                 , editIssueAssignees = Nothing
+                 , editIssueState = Nothing
+                 , editIssueMilestone = Nothing
+                 , editIssueLabels = Nothing
+                 })
+          pure ()
+      _ -> pure ()
+  commitAll cfg
 
 readConfig :: IO Config
 readConfig = eitherSErr <$> J.eitherDecodeFileStrict "config.json"
