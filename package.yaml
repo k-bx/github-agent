@@ -16,6 +16,8 @@ dependencies:
   - aeson
   - github
   - string-class
+  - typed-process
+  - bytestring
   - optparse-applicative
   - rio
   - text
