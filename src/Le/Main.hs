@@ -94,10 +94,6 @@ commitAll Config {..} = do
   logI $ "> Commiting"
   runP_ $ proc "git" ["commit", "-m", "sync", "."]
 
--- | Whitelist of issue numbers. Just for safety
-whitelist :: [Int]
-whitelist = [80]
-
 syncIssuesOut :: IO ()
 syncIssuesOut = do
   cfg@Config {..} <- readConfig
@@ -112,46 +108,43 @@ syncIssuesOut = do
       ["", "M", fname] -> do
         let issueId :: Int
             issueId = Prelude.read (S.toString (T.dropEnd 3 fname))
-        when (not (issueId `elem` whitelist)) $ do
-          logI $ "Skipping non-whitelist issue: " <> show issueId
-        when (issueId `elem` whitelist) $ do
-          logI $ "> Editing issue on GitHub: " <> show issueId
-          newBody <- T.readFile (cfgDataDir <> "/" <> show issueId <> ".md")
-          System.Directory.createDirectoryIfMissing False $
-            cfgDataDir <> "/backup"
-          logI $ "> Getting info and backing up"
-          issue <-
-            eitherSErr <$>
-            GitHub.Endpoints.Issues.issue'
-              (Just (GitHub.Auth.OAuth (S.fromText cfgAuth)))
-              cfgOwnerName
-              cfgRepoName
-              (GitHub.Data.Id.Id issueId)
-          t <- Data.Time.getCurrentTime
-          let stamp =
-                Data.Time.Format.formatTime
-                  Data.Time.Format.defaultTimeLocale
-                  "%F-%X"
-                  t
-          let bakfp = cfgDataDir <> "/backup/" <> show issueId <> "-" <> stamp
-          logI $ "> Writing backup in " <> bakfp
-          T.writeFile bakfp (fromMaybe "" (GitHub.Data.Issues.issueBody issue))
-          logI $ "> Doing the update"
+        logI $ "> Editing issue on GitHub: " <> show issueId
+        newBody <- T.readFile (cfgDataDir <> "/" <> show issueId <> ".md")
+        System.Directory.createDirectoryIfMissing False $
+          cfgDataDir <> "/backup"
+        logI $ "> Getting info and backing up"
+        issue <-
           eitherSErr <$>
-            GitHub.Endpoints.Issues.editIssue
-              (GitHub.Auth.OAuth (S.fromText cfgAuth))
-              cfgOwnerName
-              cfgRepoName
-              (GitHub.Data.Id.Id issueId)
-              (GitHub.Data.Issues.EditIssue
-                 { editIssueTitle = Nothing
-                 , editIssueBody = Just newBody
-                 , editIssueAssignees = Nothing
-                 , editIssueState = Nothing
-                 , editIssueMilestone = Nothing
-                 , editIssueLabels = Nothing
-                 })
-          pure ()
+          GitHub.Endpoints.Issues.issue'
+            (Just (GitHub.Auth.OAuth (S.fromText cfgAuth)))
+            cfgOwnerName
+            cfgRepoName
+            (GitHub.Data.Id.Id issueId)
+        t <- Data.Time.getCurrentTime
+        let stamp =
+              Data.Time.Format.formatTime
+                Data.Time.Format.defaultTimeLocale
+                "%F-%X"
+                t
+        let bakfp = cfgDataDir <> "/backup/" <> show issueId <> "-" <> stamp
+        logI $ "> Writing backup in " <> bakfp
+        T.writeFile bakfp (fromMaybe "" (GitHub.Data.Issues.issueBody issue))
+        logI $ "> Doing the update"
+        eitherSErr <$>
+          GitHub.Endpoints.Issues.editIssue
+            (GitHub.Auth.OAuth (S.fromText cfgAuth))
+            cfgOwnerName
+            cfgRepoName
+            (GitHub.Data.Id.Id issueId)
+            (GitHub.Data.Issues.EditIssue
+               { editIssueTitle = Nothing
+               , editIssueBody = Just newBody
+               , editIssueAssignees = Nothing
+               , editIssueState = Nothing
+               , editIssueMilestone = Nothing
+               , editIssueLabels = Nothing
+               })
+        pure ()
       _ -> pure ()
   commitAll cfg
 
