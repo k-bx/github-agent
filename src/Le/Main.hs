@@ -83,6 +83,9 @@ commitAll Config {..} = do
   logI $ show entries
   forM_ entries $ \entry -> do
     case entry of
+      ["??", fname] -> do
+        when (T.takeEnd 3 fname == ".md") $ do
+          runP_ $ proc "git" ["add", S.toString fname]
       ["", "M", fname] -> do
         logI $ "> Adding modified: " <> S.toString fname
         runP_ $ proc "git" ["add", S.toString fname]
