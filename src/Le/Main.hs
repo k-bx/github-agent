@@ -70,42 +70,51 @@ syncIssuesIn = do
     T.writeFile outfp (fromMaybe "" (GitHub.Data.Issues.issueBody issue))
   commitAll cfg
 
-commitAll :: Config -> IO ()
-commitAll Config {..} = do
-  logI $ "> Commiting changes"
-  let runP_ = runProcess_ . setWorkingDir cfgDataDir
-      readP_ = readProcess_ . setWorkingDir cfgDataDir
-  runP_ (proc "git" ["status", "--porcelain=v1"])
-  (out, _) <- readP_ $ (proc "git" ["status", "-z"])
-  let entries =
-        BL.split 0 out |> map S.toText |> filter ((/= "") . T.strip . S.toText) |>
-        map (T.splitOn " ")
-  logI $ show entries
-  forM_ entries $ \entry -> do
-    case entry of
-      ["??", fname] -> do
-        when (T.takeEnd 3 fname == ".md") $ do
-          runP_ $ proc "git" ["add", S.toString fname]
-      ["", "M", fname] -> do
-        logI $ "> Adding modified: " <> S.toString fname
-        runP_ $ proc "git" ["add", S.toString fname]
-        pure ()
-      _ -> pure ()
-  logI $ "> Commiting"
-  runP_ $ proc "git" ["commit", "-m", "sync", "."]
+data StatusLine
+  = StatusLineQ Text
+  | StatusLineM Text
 
-syncIssuesOut :: IO ()
-syncIssuesOut = do
-  cfg@Config {..} <- readConfig
+gitStatus :: Config -> IO [StatusLine]
+gitStatus Config {..} = do
   let readP_ = readProcess_ . setWorkingDir cfgDataDir
   (out, _) <- readP_ $ (proc "git" ["status", "-z"])
   let entries =
         BL.split 0 out |> map S.toText |> filter ((/= "") . T.strip . S.toText) |>
         map (T.splitOn " ")
   logI $ show entries
+  fmap catMaybes $
+    forM entries $ \entry -> do
+      case entry of
+        ["??", fname] -> do
+          pure $ Just $ StatusLineQ fname
+        ["", "M", fname] -> do
+          pure $ Just $ StatusLineM fname
+        _ -> pure Nothing
+
+commitAll :: Config -> IO ()
+commitAll cfg@Config {..} = do
+  logI $ "> Commiting changes"
+  let runP_ = runProcess_ . setWorkingDir cfgDataDir
+  entries <- gitStatus cfg
   forM_ entries $ \entry -> do
     case entry of
-      ["", "M", fname] -> do
+      StatusLineQ fname -> do
+        when (T.takeEnd 3 fname == ".md") $ do
+          runP_ $ proc "git" ["add", S.toString fname]
+      StatusLineM fname -> do
+        logI $ "> Adding modified: " <> S.toString fname
+        runP_ $ proc "git" ["add", S.toString fname]
+        pure ()
+  logI $ "> Commiting"
+  runP_ $ proc "git" ["commit", "-m", "sync", "."]
+
+syncIssuesOut :: IO ()
+syncIssuesOut = do
+  cfg@Config {..} <- readConfig
+  entries <- gitStatus cfg
+  forM_ entries $ \entry -> do
+    case entry of
+      StatusLineM fname -> do
         let issueId :: Int
             issueId = Prelude.read (S.toString (T.dropEnd 3 fname))
         logI $ "> Editing issue on GitHub: " <> show issueId
