@@ -101,7 +101,14 @@ syncIssuesIn = do
           let remoteContentsFp = tmpDir <> "/" <> show issueNum <> "-remote.txt"
           T.writeFile remoteContentsFp issueBody
           runP_ $
-            proc "git" ["diff", "--no-index", "--word-diff=color", remoteContentsFp, outfp]
+            proc
+              "git"
+              [ "diff"
+              , "--no-index"
+              , "--word-diff=color"
+              , remoteContentsFp
+              , outfp
+              ]
         False -> do
           T.writeFile outfp issueBody
   commitAll cfg
@@ -156,13 +163,17 @@ syncIssuesOut :: IO ()
 syncIssuesOut = do
   cfg@Config {..} <- readConfig
   forM_ repos $ \repo@Repo {..} -> do
+    let readP_ = readProcess_ . setWorkingDir repo_data_dir
+    let runP_ = runProcess_ . setWorkingDir repo_data_dir
     entries <- gitStatus repo
     forM_ entries $ \entry -> do
       case entry of
         StatusLineM fname -> do
           issueId <- filenameToIssueId fname
           logI $ "> Editing issue on GitHub: " <> show issueId
-          newBody <- T.readFile (repo_data_dir <> "/" <> show issueId <> ".md")
+          let mdFilename = show issueId <> ".md"
+          let mdFp = repo_data_dir <> "/" <> mdFilename
+          newBody <- T.readFile mdFp
           System.Directory.createDirectoryIfMissing False $
             repo_data_dir <> "/backup"
           logI $ "> Getting info and backing up"
@@ -173,32 +184,54 @@ syncIssuesOut = do
               (GitHub.Data.Name.N repo_owner_name)
               (GitHub.Data.Name.N repo_name)
               (GitHub.Data.Id.Id issueId)
-          t <- Data.Time.getCurrentTime
-          let stamp =
-                Data.Time.Format.formatTime
-                  Data.Time.Format.defaultTimeLocale
-                  "%F-%X"
-                  t
-          let bakfp =
-                repo_data_dir <> "/backup/" <> show issueId <> "-" <> stamp
-          logI $ "> Writing backup in " <> bakfp
-          T.writeFile bakfp (fromMaybe "" (GitHub.Data.Issues.issueBody issue))
-          logI $ "> Doing the update"
-          eitherSErr <$>
-            GitHub.Endpoints.Issues.editIssue
-              (GitHub.Auth.OAuth (S.fromText repo_auth))
-              (GitHub.Data.Name.N repo_owner_name)
-              (GitHub.Data.Name.N repo_name)
-              (GitHub.Data.Id.Id issueId)
-              (GitHub.Data.Issues.EditIssue
-                 { editIssueTitle = Nothing
-                 , editIssueBody = Just newBody
-                 , editIssueAssignees = Nothing
-                 , editIssueState = Nothing
-                 , editIssueMilestone = Nothing
-                 , editIssueLabels = Nothing
-                 })
-          pure ()
+          (originalContent_, _) <- readP_ $ proc "git" ["show", "HEAD:" <> mdFilename]
+          let originalContent = S.toText originalContent_
+          let newContent = fromMaybe "" (GitHub.Data.Issues.issueBody issue)
+          case originalContent == newContent of
+            False -> do
+              logI $
+                "> Skipping sync-out for a remotely modified issue: " <>
+                show issueId
+              tmpDir <- System.Directory.getTemporaryDirectory
+              let remoteContentsFp =
+                    tmpDir <> "/" <> show issueId <> "-remote.txt"
+              T.writeFile remoteContentsFp newContent
+              runP_ $
+                proc
+                  "git"
+                  [ "diff"
+                  , "--no-index"
+                  , "--word-diff=color"
+                  , remoteContentsFp
+                  , mdFp
+                  ]
+            True -> do
+              t <- Data.Time.getCurrentTime
+              let stamp =
+                    Data.Time.Format.formatTime
+                      Data.Time.Format.defaultTimeLocale
+                      "%F-%X"
+                      t
+              let bakfp =
+                    repo_data_dir <> "/backup/" <> show issueId <> "-" <> stamp
+              logI $ "> Writing backup in " <> bakfp
+              T.writeFile bakfp newContent
+              logI $ "> Doing the update"
+              eitherSErr <$>
+                GitHub.Endpoints.Issues.editIssue
+                  (GitHub.Auth.OAuth (S.fromText repo_auth))
+                  (GitHub.Data.Name.N repo_owner_name)
+                  (GitHub.Data.Name.N repo_name)
+                  (GitHub.Data.Id.Id issueId)
+                  (GitHub.Data.Issues.EditIssue
+                     { editIssueTitle = Nothing
+                     , editIssueBody = Just newBody
+                     , editIssueAssignees = Nothing
+                     , editIssueState = Nothing
+                     , editIssueMilestone = Nothing
+                     , editIssueLabels = Nothing
+                     })
+              pure ()
         _ -> pure ()
   commitAll cfg
 
