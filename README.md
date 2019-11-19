@@ -11,7 +11,7 @@ job at syncing the issues.
 
 ## Usage
 
-Copy `config.json.example` to `~/.github-agent.json` for usage.
+Copy `config.dhall.example` to `~/.github-agent.dhall` for usage.
 
 Usage:
 

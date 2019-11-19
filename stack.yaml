@@ -4,3 +4,4 @@ packages:
 extra-deps:
 - github-0.23
 - binary-instances-1
+- dhall-1.27.0

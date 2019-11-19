@@ -16,6 +16,7 @@ dependencies:
   - aeson
   - bytestring
   - directory
+  - dhall
   - github
   - optparse-applicative
   - rio

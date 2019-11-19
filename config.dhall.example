@@ -1,0 +1,8 @@
+{ repos =
+    [ { repo_owner_name = "exampleowner"
+      , repo_name = "reponame"
+      , repo_data_dir = "/path/to/datadir-git-repo"
+      , repo_auth = "oauthtoken-see-https://github.com/settings/tokens"
+      }
+    ]
+}

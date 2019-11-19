@@ -7,10 +7,12 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Time
 import qualified Data.Time.Format
+import qualified Dhall
 import qualified GitHub.Auth
 import qualified GitHub.Data.Definitions
 import qualified GitHub.Data.Id
 import qualified GitHub.Data.Issues
+import qualified GitHub.Data.Name
 import qualified GitHub.Endpoints.Issues
 import Le.Import
 import Options.Applicative
@@ -20,15 +22,22 @@ import System.Process.Typed (proc, readProcess_, runProcess_, setWorkingDir)
 
 data Config =
   Config
-    { cfgOwnerName :: GitHub.Endpoints.Issues.Name GitHub.Endpoints.Issues.Owner
-    , cfgRepoName :: GitHub.Endpoints.Issues.Name GitHub.Endpoints.Issues.Repo
-    , cfgDataDir :: FilePath
-    , cfgAuth :: Text -- GitHub.Endpoints.Issues.Auth
+    { repos :: [Repo]
     }
   deriving (Generic)
 
-instance J.FromJSON Config where
-  parseJSON = J.genericParseJSON (jsonOpts 3)
+data Repo =
+  Repo
+    { repo_owner_name :: Text
+    , repo_name :: Text
+    , repo_data_dir :: FilePath
+    , repo_auth :: Text
+    }
+  deriving (Generic)
+
+instance Dhall.FromDhall Repo
+
+instance Dhall.FromDhall Config
 
 main :: IO ()
 main = do
@@ -52,31 +61,38 @@ cmd n d p = command n (info p (progDesc d))
 syncIssuesIn :: IO ()
 syncIssuesIn = do
   cfg@Config {..} <- readConfig
-  issues <-
-    eitherSErr <$>
-    GitHub.Endpoints.Issues.issuesForRepo'
-      (Just (GitHub.Auth.OAuth (S.fromText cfgAuth)))
-      cfgOwnerName
-      cfgRepoName
-      mempty
-  forM_ issues $ \issue -> do
-    let outfp =
-          cfgDataDir <> "/" <>
-          show
-            (GitHub.Data.Definitions.unIssueNumber
-               (GitHub.Data.Issues.issueNumber issue) :: Int) <>
-          ".md"
-    logI $ "> Writing: " <> outfp
-    T.writeFile outfp (fromMaybe "" (GitHub.Data.Issues.issueBody issue))
+  forM_ repos $ \Repo {..} -> do
+    let runP_ = runProcess_ . setWorkingDir repo_data_dir
+    exists <- System.Directory.doesDirectoryExist repo_data_dir
+    when (not exists) $ do
+      logI $ "> Creating and initialising the repo data dir: " <> repo_data_dir
+      System.Directory.createDirectory repo_data_dir
+      runP_ $ proc "git" ["init", "."]
+    issues <-
+      eitherSErr <$>
+      GitHub.Endpoints.Issues.issuesForRepo'
+        (Just (GitHub.Auth.OAuth (S.fromText repo_auth)))
+        (GitHub.Data.Name.N repo_owner_name)
+        (GitHub.Data.Name.N repo_name)
+        mempty
+    forM_ issues $ \issue -> do
+      let outfp =
+            repo_data_dir <> "/" <>
+            show
+              (GitHub.Data.Definitions.unIssueNumber
+                 (GitHub.Data.Issues.issueNumber issue) :: Int) <>
+            ".md"
+      logI $ "> Writing: " <> outfp
+      T.writeFile outfp (fromMaybe "" (GitHub.Data.Issues.issueBody issue))
   commitAll cfg
 
 data StatusLine
   = StatusLineQ Text
   | StatusLineM Text
 
-gitStatus :: Config -> IO [StatusLine]
-gitStatus Config {..} = do
-  let readP_ = readProcess_ . setWorkingDir cfgDataDir
+gitStatus :: Repo -> IO [StatusLine]
+gitStatus Repo {..} = do
+  let readP_ = readProcess_ . setWorkingDir repo_data_dir
   (out, _) <- readP_ $ (proc "git" ["status", "-z"])
   let entries =
         BL.split 0 out |> map S.toText |> filter ((/= "") . T.strip . S.toText) |>
@@ -92,75 +108,78 @@ gitStatus Config {..} = do
         _ -> pure Nothing
 
 commitAll :: Config -> IO ()
-commitAll cfg@Config {..} = do
-  logI $ "> Commiting changes"
-  let runP_ = runProcess_ . setWorkingDir cfgDataDir
-  entries <- gitStatus cfg
-  forM_ entries $ \entry -> do
-    case entry of
-      StatusLineQ fname -> do
-        when (T.takeEnd 3 fname == ".md") $ do
+commitAll Config {..} = do
+  forM_ repos $ \repo@Repo {..} -> do
+    logI $ "> Commiting changes"
+    let runP_ = runProcess_ . setWorkingDir repo_data_dir
+    entries <- gitStatus repo
+    forM_ entries $ \entry -> do
+      case entry of
+        StatusLineQ fname -> do
+          when (T.takeEnd 3 fname == ".md") $ do
+            runP_ $ proc "git" ["add", S.toString fname]
+        StatusLineM fname -> do
+          logI $ "> Adding modified: " <> S.toString fname
           runP_ $ proc "git" ["add", S.toString fname]
-      StatusLineM fname -> do
-        logI $ "> Adding modified: " <> S.toString fname
-        runP_ $ proc "git" ["add", S.toString fname]
-        pure ()
-  logI $ "> Commiting"
-  runP_ $ proc "git" ["commit", "-m", "sync", "."]
+          pure ()
+    logI $ "> Commiting"
+    runP_ $ proc "git" ["commit", "-m", "sync", "."]
 
 syncIssuesOut :: IO ()
 syncIssuesOut = do
   cfg@Config {..} <- readConfig
-  entries <- gitStatus cfg
-  forM_ entries $ \entry -> do
-    case entry of
-      StatusLineM fname -> do
-        let issueId :: Int
-            issueId = Prelude.read (S.toString (T.dropEnd 3 fname))
-        logI $ "> Editing issue on GitHub: " <> show issueId
-        newBody <- T.readFile (cfgDataDir <> "/" <> show issueId <> ".md")
-        System.Directory.createDirectoryIfMissing False $
-          cfgDataDir <> "/backup"
-        logI $ "> Getting info and backing up"
-        issue <-
+  forM_ repos $ \repo@Repo {..} -> do
+    entries <- gitStatus repo
+    forM_ entries $ \entry -> do
+      case entry of
+        StatusLineM fname -> do
+          let issueId :: Int
+              issueId = Prelude.read (S.toString (T.dropEnd 3 fname))
+          logI $ "> Editing issue on GitHub: " <> show issueId
+          newBody <- T.readFile (repo_data_dir <> "/" <> show issueId <> ".md")
+          System.Directory.createDirectoryIfMissing False $
+            repo_data_dir <> "/backup"
+          logI $ "> Getting info and backing up"
+          issue <-
+            eitherSErr <$>
+            GitHub.Endpoints.Issues.issue'
+              (Just (GitHub.Auth.OAuth (S.fromText repo_auth)))
+              (GitHub.Data.Name.N repo_owner_name)
+              (GitHub.Data.Name.N repo_name)
+              (GitHub.Data.Id.Id issueId)
+          t <- Data.Time.getCurrentTime
+          let stamp =
+                Data.Time.Format.formatTime
+                  Data.Time.Format.defaultTimeLocale
+                  "%F-%X"
+                  t
+          let bakfp =
+                repo_data_dir <> "/backup/" <> show issueId <> "-" <> stamp
+          logI $ "> Writing backup in " <> bakfp
+          T.writeFile bakfp (fromMaybe "" (GitHub.Data.Issues.issueBody issue))
+          logI $ "> Doing the update"
           eitherSErr <$>
-          GitHub.Endpoints.Issues.issue'
-            (Just (GitHub.Auth.OAuth (S.fromText cfgAuth)))
-            cfgOwnerName
-            cfgRepoName
-            (GitHub.Data.Id.Id issueId)
-        t <- Data.Time.getCurrentTime
-        let stamp =
-              Data.Time.Format.formatTime
-                Data.Time.Format.defaultTimeLocale
-                "%F-%X"
-                t
-        let bakfp = cfgDataDir <> "/backup/" <> show issueId <> "-" <> stamp
-        logI $ "> Writing backup in " <> bakfp
-        T.writeFile bakfp (fromMaybe "" (GitHub.Data.Issues.issueBody issue))
-        logI $ "> Doing the update"
-        eitherSErr <$>
-          GitHub.Endpoints.Issues.editIssue
-            (GitHub.Auth.OAuth (S.fromText cfgAuth))
-            cfgOwnerName
-            cfgRepoName
-            (GitHub.Data.Id.Id issueId)
-            (GitHub.Data.Issues.EditIssue
-               { editIssueTitle = Nothing
-               , editIssueBody = Just newBody
-               , editIssueAssignees = Nothing
-               , editIssueState = Nothing
-               , editIssueMilestone = Nothing
-               , editIssueLabels = Nothing
-               })
-        pure ()
-      _ -> pure ()
+            GitHub.Endpoints.Issues.editIssue
+              (GitHub.Auth.OAuth (S.fromText repo_auth))
+              (GitHub.Data.Name.N repo_owner_name)
+              (GitHub.Data.Name.N repo_name)
+              (GitHub.Data.Id.Id issueId)
+              (GitHub.Data.Issues.EditIssue
+                 { editIssueTitle = Nothing
+                 , editIssueBody = Just newBody
+                 , editIssueAssignees = Nothing
+                 , editIssueState = Nothing
+                 , editIssueMilestone = Nothing
+                 , editIssueLabels = Nothing
+                 })
+          pure ()
+        _ -> pure ()
   commitAll cfg
 
 readConfig :: IO Config
 readConfig = do
   h <- System.Directory.getHomeDirectory
-  eitherSErr <$> (J.eitherDecodeFileStrict (h <> "/.github-agent.json"))
+  Dhall.input Dhall.auto (S.toText (h <> "/.github-agent.dhall"))
 
 logI :: String -> IO ()
 logI = Prelude.putStrLn
