@@ -39,6 +39,8 @@ instance Dhall.FromDhall Repo
 
 instance Dhall.FromDhall Config
 
+type IssueId = Int
+
 main :: IO ()
 main = do
   join
@@ -61,7 +63,7 @@ cmd n d p = command n (info p (progDesc d))
 syncIssuesIn :: IO ()
 syncIssuesIn = do
   cfg@Config {..} <- readConfig
-  forM_ repos $ \Repo {..} -> do
+  forM_ repos $ \repo@Repo {..} -> do
     let runP_ = runProcess_ . setWorkingDir repo_data_dir
     exists <- System.Directory.doesDirectoryExist repo_data_dir
     when (not exists) $ do
@@ -75,15 +77,33 @@ syncIssuesIn = do
         (GitHub.Data.Name.N repo_owner_name)
         (GitHub.Data.Name.N repo_name)
         mempty
+    entries <- gitStatus repo
+    (modifiedEntries :: [IssueId]) <-
+      fmap catMaybes $
+      forM
+        entries
+        (\case
+           StatusLineM fpath -> fmap Just $ filenameToIssueId fpath
+           _ -> pure Nothing)
     forM_ issues $ \issue -> do
-      let outfp =
-            repo_data_dir <> "/" <>
-            show
-              (GitHub.Data.Definitions.unIssueNumber
-                 (GitHub.Data.Issues.issueNumber issue) :: Int) <>
-            ".md"
+      let issueNum :: IssueId
+          issueNum =
+            GitHub.Data.Definitions.unIssueNumber
+              (GitHub.Data.Issues.issueNumber issue)
+      let issueBody = fromMaybe "" (GitHub.Data.Issues.issueBody issue)
+      let outfp = repo_data_dir <> "/" <> show issueNum <> ".md"
       logI $ "> Writing: " <> outfp
-      T.writeFile outfp (fromMaybe "" (GitHub.Data.Issues.issueBody issue))
+      case (issueNum `elem` modifiedEntries) of
+        True -> do
+          logI $
+            "> Skipping sync-in for a locally modified issue: " <> show issueNum
+          tmpDir <- System.Directory.getTemporaryDirectory
+          let remoteContentsFp = tmpDir <> "/" <> show issueNum <> "-remote.txt"
+          T.writeFile remoteContentsFp issueBody
+          runP_ $
+            proc "git" ["diff", "--no-index", "--word-diff=color", remoteContentsFp, outfp]
+        False -> do
+          T.writeFile outfp issueBody
   commitAll cfg
 
 data StatusLine
@@ -97,7 +117,7 @@ gitStatus Repo {..} = do
   let entries =
         BL.split 0 out |> map S.toText |> filter ((/= "") . T.strip . S.toText) |>
         map (T.splitOn " ")
-  logI $ show entries
+  -- logI $ show entries
   fmap catMaybes $
     forM entries $ \entry -> do
       case entry of
@@ -125,6 +145,13 @@ commitAll Config {..} = do
     logI $ "> Commiting"
     runP_ $ proc "git" ["commit", "-m", "sync", "."]
 
+-- | Partial
+filenameToIssueId :: Text -> IO IssueId
+filenameToIssueId fname = do
+  let issueId :: IssueId
+      issueId = Prelude.read (S.toString (T.dropEnd 3 fname))
+  pure issueId
+
 syncIssuesOut :: IO ()
 syncIssuesOut = do
   cfg@Config {..} <- readConfig
@@ -133,8 +160,7 @@ syncIssuesOut = do
     forM_ entries $ \entry -> do
       case entry of
         StatusLineM fname -> do
-          let issueId :: Int
-              issueId = Prelude.read (S.toString (T.dropEnd 3 fname))
+          issueId <- filenameToIssueId fname
           logI $ "> Editing issue on GitHub: " <> show issueId
           newBody <- T.readFile (repo_data_dir <> "/" <> show issueId <> ".md")
           System.Directory.createDirectoryIfMissing False $
