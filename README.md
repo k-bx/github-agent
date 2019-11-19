@@ -9,6 +9,14 @@ local folder, in fact a git repo, and use your favorite editor for
 editing, and run a periodic "sync" command doing the least surprising
 job at syncing the issues.
 
+## Installation
+
+Install [Stack](https://haskellstack.org), then
+
+```
+stack install
+```
+
 ## Usage
 
 Copy `config.dhall.example` to `~/.github-agent.dhall` for usage.
