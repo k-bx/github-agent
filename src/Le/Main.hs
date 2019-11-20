@@ -64,6 +64,7 @@ syncIssuesIn :: IO ()
 syncIssuesIn = do
   cfg@Config {..} <- readConfig
   forM_ repos $ \repo@Repo {..} -> do
+    logI $ "> sync-in for repo: " <> repo_data_dir
     let runP_ = runProcess_ . setWorkingDir repo_data_dir
     exists <- System.Directory.doesDirectoryExist repo_data_dir
     when (not exists) $ do
@@ -141,20 +142,23 @@ gitStatus Repo {..} = do
 commitAll :: Config -> IO ()
 commitAll Config {..} = do
   forM_ repos $ \repo@Repo {..} -> do
-    logI $ "> Commiting changes"
     let runP_ = runProcess_ . setWorkingDir repo_data_dir
     entries <- gitStatus repo
-    forM_ entries $ \entry -> do
+    needCommit <- fmap (any (== True)) $ forM entries $ \entry -> do
       case entry of
         StatusLineQ fname -> do
-          when (T.takeEnd 3 fname == ".md") $ do
-            runP_ $ proc "git" ["add", S.toString fname]
+          case (T.takeEnd 3 fname == ".md") of
+            True -> do
+              runP_ $ proc "git" ["add", S.toString fname]
+              pure True
+            _ -> pure False
         StatusLineM fname -> do
           logI $ "> Adding modified: " <> S.toString fname
           runP_ $ proc "git" ["add", S.toString fname]
-          pure ()
-    logI $ "> Commiting"
-    runP_ $ proc "git" ["commit", "-m", "sync", "."]
+          pure True
+    when needCommit $ do
+      logI $ "> commiting changes for repo: " <> repo_data_dir
+      runP_ $ proc "git" ["commit", "-m", "sync", "."]
 
 -- | Partial
 filenameToIssueId :: Text -> IO IssueId
@@ -167,6 +171,7 @@ syncIssuesOut :: IO ()
 syncIssuesOut = do
   cfg@Config {..} <- readConfig
   forM_ repos $ \repo@Repo {..} -> do
+    logI $ "> sync-out for repo: " <> repo_data_dir
     let readP_ = readProcess_ . setWorkingDir repo_data_dir
     let runP_ = runProcess_ . setWorkingDir repo_data_dir
     entries <- gitStatus repo
