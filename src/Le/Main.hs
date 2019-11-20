@@ -92,7 +92,9 @@ syncIssuesIn = do
               (GitHub.Data.Issues.issueNumber issue)
       let issueBody = fromMaybe "" (GitHub.Data.Issues.issueBody issue)
       let outfp = repo_data_dir <> "/" <> show issueNum <> ".md"
-      logI $ "> Writing: " <> outfp
+      outfpContents <- T.readFile outfp
+      when (outfpContents /= issueBody) $ do
+        logI $ "> Writing: " <> outfp
       case (issueNum `elem` modifiedEntries) of
         True -> do
           logI $
