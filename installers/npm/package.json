@@ -36,7 +36,7 @@
     "install",
     "installer"
   ],
-  "bin": { "elm": "bin/github-agent" },
+  "bin": { "github-agent": "bin/github-agent" },
   "dependencies": {
     "request": "^2.88.0"
   }

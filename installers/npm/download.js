@@ -18,12 +18,12 @@ module.exports = function(callback)
 	var version = package.version.replace(/^(\d+\.\d+\.\d+).*$/, '$1'); // turn '1.2.3-alpha' into '1.2.3'
 	var os = { 'darwin': 'mac', 'win32': 'windows', 'linux': 'linux' }[process.platform];
 	var arch = { 'x64': '64-bit', 'ia32': '32-bit' }[process.arch];
-	var url = 'https://github.com/elm/compiler/releases/download/' + version + '/binary-for-' + os + '-' + arch + '.gz';
+	var url = 'https://github.com/k-bx/github-agent/releases/download/' + version + '/binary-for-' + os + '-' + arch + '.gz';
 
 	reportDownload(version, url);
 
 	// figure out where to put the binary (calls path.resolve() to get path separators right on Windows)
-	var binaryPath = path.resolve(__dirname, package.bin.elm) + (process.platform === 'win32' ? '.exe' : '');
+	var binaryPath = path.resolve(__dirname, package.bin["github-agent"]) + (process.platform === 'win32' ? '.exe' : '');
 
 	// set up handler for request failure
 	function reportDownloadFailure(error)
@@ -74,7 +74,7 @@ function reportDownload(version, url)
 {
 	console.log(
 		'--------------------------------------------------------------------------------\n\n'
-		+ 'Downloading Elm ' + version + ' from GitHub.'
+		+ 'Downloading Github Agent ' + version + ' from GitHub.'
 		+ '\n\nNOTE: You can avoid npm entirely by downloading directly from:\n'
 		+ url + '\nAll this package does is download that file and put it somewhere.\n\n'
 		+ '--------------------------------------------------------------------------------\n'
