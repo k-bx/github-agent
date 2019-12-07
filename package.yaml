@@ -1,5 +1,5 @@
 name:                github-agent
-version:             0.1.0.0
+version:             0.1.0
 #synopsis:
 #description:
 homepage:            https://github.com/k-bx/github-agent#readme
@@ -71,7 +71,7 @@ default-extensions:
 
 library:
   source-dirs: src
-  ghc-options: &ghc-options -Wall
+  ghc-options: -Wall
                -Werror
                -Wcompat
                -Wincomplete-record-updates
@@ -80,12 +80,20 @@ library:
                -Wno-name-shadowing
                -Wno-orphans
                -optP-Wno-nonportable-include-path
-               -threaded
-               -with-rtsopts=-N
 
 executables:
   github-agent:
     main:             app/Main.hs
     dependencies:
       - github-agent
-    ghc-options: *ghc-options
+    ghc-options: -Wall
+                 -Werror
+                 -Wcompat
+                 -Wincomplete-record-updates
+                 -Wincomplete-uni-patterns
+                 -Wno-redundant-constraints
+                 -Wno-name-shadowing
+                 -Wno-orphans
+                 -optP-Wno-nonportable-include-path
+                 -threaded
+                 -with-rtsopts=-N
