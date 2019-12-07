@@ -11,6 +11,8 @@ job at syncing the issues.
 
 ## Installation
 
+Binary installs via npm [are planned to be available soon](https://github.com/k-bx/github-agent/issues/5), meanwhile you can install from source only.
+
 Install [Stack](https://haskellstack.org), then
 
 ```
