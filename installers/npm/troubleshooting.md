@@ -1,40 +1,6 @@
 # Troubleshooting
 
-I very highly recommend asking for help on [the Elm slack](https://elmlang.herokuapp.com).
-
-There are a lot of things that can go wrong when installing software, and it can really help to have a second pair of eyes on your situation!
-
 This document goes through a couple options that may help you out.
-
-<br/>
-
-
-## Can you skip npm entirely?
-
-The most reliable way to get Elm installed using the official installers for Mac and Windows [here][download].
-
-You can also download the binaries directly. On Linux, you could do it in the terminal like this:
-
-```bash
-cd ~/Desktop/
-curl -L -o elm.gz https://github.com/elm/compiler/releases/download/0.19.1/binary-for-linux-64-bit.gz
-gunzip elm.gz                # unzip the file
-chmod +x elm                 # make the file executable
-sudo mv elm /usr/local/bin/  # put the executable in a directory likely to be listed in your PATH variable
-```
-
-If these exact commands do not work for you, you can try to do the same thing by hand.
-
-Read the section below on `PATH` variables if you are not sure what that is!
-
-[download]: https://github.com/elm/compiler/releases/tag/0.19.1
-
-<br/>
-
-
-## Do you need to use npm for some reason?
-
-The company running npm has a list of common troubleshooting situations [here](https://npm.community/c/support/troubleshooting), but it may be better to just try to find your specific case on Stack Overflow. Often there are permissions issues where you may need to use `sudo` with some command.
 
 ### Firewalls
 
@@ -58,7 +24,6 @@ npm install -g elm
 Check out [this document](https://www.npmjs.com/package/request#controlling-proxy-behaviour-using-environment-variables) for more information on how environment variables like `NO_PROXY`, `HTTP_PROXY`, and `HTTPS_PROXY` are handled by the npm.
 
 <br/>
-
 
 ## Do you know what a `PATH` variable is?
 

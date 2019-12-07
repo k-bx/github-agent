@@ -1,19 +1,19 @@
 {
-  "name": "elm",
-  "version": "0.19.1-3",
-  "description": "Installer for Elm: just downloads the binary into node_modules",
+  "name": "github-agent",
+  "version": "0.1.0",
+  "description": "Installer for Github Agent: just downloads the binary into node_modules",
   "preferGlobal": true,
   "license": "BSD-3-Clause",
   "repository": {
     "type": "git",
-    "url": "https://github.com/elm/compiler.git"
+    "url": "https://github.com/k-bx/github-agent.git"
   },
-  "homepage": "https://github.com/elm/compiler/tree/master/installers/npm",
-  "bugs": "https://github.com/elm/compiler/issues",
+  "homepage": "https://github.com/k-bx/github-agent/tree/master/installers/npm",
+  "bugs": "https://github.com/k-bx/github-agent/issues",
   "author": {
-    "name": "Evan Czaplicki",
-    "email": "evan@elm-lang.org",
-    "url": "https://github.com/evancz"
+    "name": "Kostiantyn Rybnikov",
+    "email": "k-bx@k-bx.com",
+    "url": "https://github.com/k-bx"
   },
   "engines": {
     "node": ">=7.0.0"
@@ -25,17 +25,18 @@
     "install.js",
     "download.js",
     "bin",
-    "bin/elm"
+    "bin/github-agent"
   ],
   "keywords": [
     "bin",
     "binary",
     "binaries",
-    "elm",
+    "github",
+    "github-agent",
     "install",
     "installer"
   ],
-  "bin": { "elm": "bin/elm" },
+  "bin": { "elm": "bin/github-agent" },
   "dependencies": {
     "request": "^2.88.0"
   }

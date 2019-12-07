@@ -5,13 +5,13 @@ Here's how to update the `npm` installer.
 
 ## 1. GitHub Release
 
-Create a [GitHub Release](https://github.com/elm/compiler/releases) with the following files:
+Create a [GitHub Release](https://github.com/k-bx/github-agent/releases) with the following files:
 
 1. `binary-for-mac-64-bit.gz`
 2. `binary-for-windows-64-bit.gz`
 3. `binary-for-linux-64-bit.gz`
 
-Create each of these by running the `elm` executable for each platform through `gzip elm`.
+Create each of these by running the `github-agent` executable for each platform through `gzip github-agent`.
 
 
 ## 2. Try a beta release
@@ -25,8 +25,8 @@ npm publish --tag beta
 To test that it works, run these commands:
 
 ```bash
-npm dist-tags ls elm
-npm install elm@beta --ignore-scripts
+npm dist-tags ls github-agent
+npm install github-agent@beta --ignore-scripts
 ```
 
 The `latest` tag should not be changed, and there should be an additional `beta` tag.
@@ -47,10 +47,10 @@ npm publish
 
 Many compiler releases have needed multiple `npm` publications. Maybe something does not work on Windows or some dependency becomes insecure. Normal `npm` problems.
 
-The convention for each Elm release is to create a tag the latest one.
+The convention for each Github Agent release is to create a tag the latest one.
 
 ```bash
-npm dist-tag add elm@0.19.1-3 latest-0.19.1
+npm dist-tag add github-agent@0.19.1-3 latest-0.19.1
 ```
 
 That way people who want a specific version can point to `latest-0.19.1` or `latest-0.18.0` instead of knowing the particular names of all the various publications.
