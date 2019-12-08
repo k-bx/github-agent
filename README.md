@@ -11,13 +11,21 @@ job at syncing the issues.
 
 ## Installation
 
-Binary installs via npm [are planned to be available soon](https://github.com/k-bx/github-agent/issues/5), meanwhile you can install from source only.
+**Binary installs** are available via npm:
+
+```
+npm install -g github-agent
+```
+
+**Source install**
 
 Install [Stack](https://haskellstack.org), then
 
 ```
 stack install
 ```
+
+This will put `github-agent` into `~/.local/bin`.
 
 ## Usage
 
