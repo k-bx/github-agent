@@ -1,6 +1,6 @@
 {
   "name": "github-agent",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Installer for Github Agent: just downloads the binary into node_modules",
   "preferGlobal": true,
   "license": "BSD-3-Clause",
