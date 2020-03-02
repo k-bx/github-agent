@@ -11,7 +11,7 @@ job at syncing the issues.
 
 ## Installation
 
-**Binary installs** are available via npm:
+**Binary installs** (Linux and macOS at the moment) are available via npm:
 
 ```
 npm install -g github-agent
