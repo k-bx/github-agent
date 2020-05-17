@@ -1,5 +1,5 @@
 name:                github-agent
-version:             0.1.1
+version:             0.2.0
 #synopsis:
 #description:
 homepage:            https://github.com/k-bx/github-agent#readme
@@ -18,12 +18,15 @@ dependencies:
   - directory
   - dhall
   - github
+  - gitlab-haskell
   - optparse-applicative
+  - safe
   - rio
   - string-class
   - text
   - time
   - typed-process
+  - vector
 
 default-extensions:
   - AutoDeriveTypeable

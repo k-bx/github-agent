@@ -1,8 +1,16 @@
-{ repos =
-    [ { repo_owner_name = "exampleowner"
-      , repo_name = "reponame"
-      , repo_data_dir = "/path/to/datadir-git-repo"
-      , repo_auth = "oauthtoken-see-https://github.com/settings/tokens"
-      }
-    ]
-}
+let RepoSource = < Github | Gitlab >
+in  { repos =
+        [ { repo_owner_name = "exampleowner"
+          , repo_name = "reponame"
+          , repo_source = RepoSource.Github
+          , repo_data_dir = "/path/to/reponame-issues"
+          , repo_auth = "oauthtoken-see-https://github.com/settings/tokens"
+          }
+        , { repo_owner_name = "exampleowner"
+          , repo_name = "reponame2"
+          , repo_source = RepoSource.Gitlab
+          , repo_data_dir = "/path/to/reponame2-issues"
+          , repo_auth = "oauthtoken-see-https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html"
+          }
+        ]
+    }
