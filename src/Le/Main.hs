@@ -260,7 +260,7 @@ gitlabConfig :: Repo -> GitLab.GitLabServerConfig
 gitlabConfig Repo {..} =
   GitLab.defaultGitLabServer {GitLab.token = repo_auth}
 
-getGitlabProj :: MonadUnliftIO m => Repo -> m GitLab.Project
+getGitlabProj :: Repo -> IO GitLab.Project
 getGitlabProj repo@Repo {..} = do
   let gitlabConf = gitlabConfig repo
   GitLab.runGitLab
