@@ -38,6 +38,8 @@ Usage:
 - `github-agent sync-out` -- for every modified issue, check if it
   wasn't modified on server, and edit it in the repo, commit changes
 
+You can use `~` in your paths to refer to your `$HOME` directory.
+
 ## Misc
 
 TODO:

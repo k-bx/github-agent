@@ -348,7 +348,12 @@ updateIssue repo@Repo {..} issueId newBody = do
 readConfig :: IO Config
 readConfig = do
   h <- System.Directory.getHomeDirectory
-  Dhall.input Dhall.auto (S.toText (h <> "/.github-agent.dhall"))
+  cfg <- Dhall.input Dhall.auto (S.toText (h <> "/.github-agent.dhall"))
+  let replace_h rd =
+        S.toString (T.replace "~" (S.toText h) (S.toText rd))
+  let repos2 = map (\r -> r {repo_data_dir = replace_h (repo_data_dir r)}) (repos cfg)
+  let cfg2 = cfg {repos = repos2}
+  pure cfg2
 
 logI :: String -> IO ()
 logI = Prelude.putStrLn
