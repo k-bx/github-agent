@@ -44,4 +44,5 @@ You can use `~` in your paths to refer to your `$HOME` directory.
 
 TODO:
 
+- add parameter to select a repo to sync (otherwise takes too long to sync many repos)
 - gitlab: don't list all the issues in the `getIssueInfo` every time (add appropriate API in gitlab-haskell)
