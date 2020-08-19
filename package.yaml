@@ -29,7 +29,6 @@ dependencies:
   - vector
 
 default-extensions:
-  - AutoDeriveTypeable
   - ApplicativeDo
   - BangPatterns
   - BinaryLiterals
@@ -53,7 +52,6 @@ default-extensions:
   - InstanceSigs
   - KindSignatures
   - LambdaCase
-  - MonadFailDesugaring
   - MultiParamTypeClasses
   - MultiWayIf
   - NamedFieldPuns

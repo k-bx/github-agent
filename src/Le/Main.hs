@@ -9,9 +9,9 @@ import qualified Data.Time
 import qualified Data.Time.Format
 import qualified Data.Vector as V
 import qualified Dhall
+import qualified GitHub as GH
 import qualified GitHub.Auth
 import qualified GitHub.Data.Definitions
-import qualified GitHub.Data.Id
 import qualified GitHub.Data.Issues
 import qualified GitHub.Data.Name
 import qualified GitHub.Endpoints.Issues
@@ -185,33 +185,34 @@ gitStatus Repo {..} = do
         BL.split 0 out |> map S.toText |> filter ((/= "") . T.strip . S.toText)
           |> map (T.splitOn " ")
   -- logI $ show entries
-  fmap catMaybes
-    $ forM entries
-    $ \entry -> do
-      case entry of
-        ["??", fname] -> do
-          pure $ Just $ StatusLineQ fname
-        ["", "M", fname] -> do
-          pure $ Just $ StatusLineM fname
-        _ -> pure Nothing
+  fmap catMaybes $
+    forM entries $
+      \entry -> do
+        case entry of
+          ["??", fname] -> do
+            pure $ Just $ StatusLineQ fname
+          ["", "M", fname] -> do
+            pure $ Just $ StatusLineM fname
+          _ -> pure Nothing
 
 commitAll :: Config -> IO ()
 commitAll Config {..} = do
   forM_ repos $ \repo@Repo {..} -> do
     let runP_ = runProcess_ . setWorkingDir repo_data_dir
     entries <- gitStatus repo
-    needCommit <- fmap (any (== True)) $ forM entries $ \entry -> do
-      case entry of
-        StatusLineQ fname -> do
-          case (T.takeEnd 3 fname == ".md") of
-            True -> do
-              runP_ $ proc "git" ["add", S.toString fname]
-              pure True
-            _ -> pure False
-        StatusLineM fname -> do
-          logI $ "> Adding modified: " <> S.toString fname
-          runP_ $ proc "git" ["add", S.toString fname]
-          pure True
+    needCommit <- fmap (any (== True)) $
+      forM entries $ \entry -> do
+        case entry of
+          StatusLineQ fname -> do
+            case (T.takeEnd 3 fname == ".md") of
+              True -> do
+                runP_ $ proc "git" ["add", S.toString fname]
+                pure True
+              _ -> pure False
+          StatusLineM fname -> do
+            logI $ "> Adding modified: " <> S.toString fname
+            runP_ $ proc "git" ["add", S.toString fname]
+            pure True
     when needCommit $ do
       logI $ "> commiting changes for repo: " <> repo_data_dir
       runP_ $ proc "git" ["commit", "-m", "sync", "."]
@@ -230,13 +231,16 @@ getIssues :: Repo -> IO (Vector (IssueId, IssueInfo))
 getIssues repo@Repo {..} = do
   case repo_source of
     Github -> do
-      issues <-
-        eitherSErr
-          <$> GitHub.Endpoints.Issues.issuesForRepo'
-            (Just (GitHub.Auth.OAuth (S.fromText repo_auth)))
+      (issues :: Vector GH.Issue) <-
+        -- (eitherSErr :: Either GH.Error (Vector GH.Issue) -> Vector GH.Issue)
+        (eitherSErr @GH.Error)
+          <$> GH.github
+            (GitHub.Auth.OAuth (S.fromText repo_auth))
+            GitHub.Endpoints.Issues.issuesForRepoR
             (GitHub.Data.Name.N repo_owner_name)
             (GitHub.Data.Name.N repo_name)
             mempty
+            GH.FetchAll
       forM issues $ \issue -> do
         let issueNum :: IssueId
             issueNum =
@@ -250,11 +254,12 @@ getIssues repo@Repo {..} = do
       issues <-
         GitLab.runGitLab gitlabConf $
           GitLab.projectOpenedIssues proj
-      fmap V.fromList $ forM issues $ \issue -> do
-        pure
-          ( GitLab.iid issue,
-            IssueInfo {infBody = fromMaybe "" (GitLab.issue_description issue)}
-          )
+      fmap V.fromList $
+        forM issues $ \issue -> do
+          pure
+            ( GitLab.iid issue,
+              IssueInfo {infBody = fromMaybe "" (GitLab.issue_description issue)}
+            )
 
 gitlabConfig :: Repo -> GitLab.GitLabServerConfig
 gitlabConfig Repo {..} =
@@ -277,12 +282,13 @@ getIssueInfo repo@Repo {..} issueId = do
   case repo_source of
     Github -> do
       issue <-
-        eitherSErr
-          <$> GitHub.Endpoints.Issues.issue'
-            (Just (GitHub.Auth.OAuth (S.fromText repo_auth)))
+        (eitherSErr @GH.Error)
+          <$> GH.github
+            (GitHub.Auth.OAuth (S.fromText repo_auth))
+            GitHub.Endpoints.Issues.issueR
             (GitHub.Data.Name.N repo_owner_name)
             (GitHub.Data.Name.N repo_name)
-            (GitHub.Data.Id.Id issueId)
+            (GH.IssueNumber issueId)
       pure $ IssueInfo {infBody = fromMaybe "" (GitHub.Data.Issues.issueBody issue)}
     Gitlab -> do
       proj <- getGitlabProj repo
@@ -302,12 +308,13 @@ updateIssue repo@Repo {..} issueId newBody = do
   case repo_source of
     Github -> do
       void $
-        eitherSErr
-          <$> GitHub.Endpoints.Issues.editIssue
+        (eitherSErr @GH.Error)
+          <$> GH.github
             (GitHub.Auth.OAuth (S.fromText repo_auth))
+            GitHub.Endpoints.Issues.editIssueR
             (GitHub.Data.Name.N repo_owner_name)
             (GitHub.Data.Name.N repo_name)
-            (GitHub.Data.Id.Id issueId)
+            (GH.IssueNumber issueId)
             ( GitHub.Data.Issues.EditIssue
                 { editIssueTitle = Nothing,
                   editIssueBody = Just newBody,
