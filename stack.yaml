@@ -1,4 +1,4 @@
-resolver: lts-14.13
+resolver: lts-16.10
 packages:
 - .
 extra-deps:
@@ -8,3 +8,4 @@ extra-deps:
 # see https://gitlab.com/robstewart57/gitlab-haskell/-/merge_requests/3
 - git: https://gitlab.com/k-bx/gitlab-haskell
   commit: 65fd47031a768b0d13023400fc6f87e1be11932a
+allow-newer: true
