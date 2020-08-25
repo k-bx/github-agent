@@ -138,12 +138,15 @@ syncIssuesOut = do
           (originalContent_, _) <- readP_ $ proc "git" ["show", "HEAD:" <> mdFilename]
           let originalContent = S.toText originalContent_
           let newContent = infBody issueInfo
-          case originalContent == newContent of
+          case T.strip originalContent == T.strip newContent of
             False -> do
               logI $
                 "> Skipping sync-out for a remotely modified issue: "
                   <> show issueId
               tmpDir <- System.Directory.getTemporaryDirectory
+              let originalContentsFp =
+                    tmpDir <> "/" <> show issueId <> "-original.txt"
+              T.writeFile originalContentsFp originalContent
               let remoteContentsFp =
                     tmpDir <> "/" <> show issueId <> "-remote.txt"
               T.writeFile remoteContentsFp newContent
@@ -153,9 +156,18 @@ syncIssuesOut = do
                   [ "diff",
                     "--no-index",
                     "--word-diff=color",
-                    remoteContentsFp,
-                    mdFp
+                    originalContentsFp,
+                    remoteContentsFp
                   ]
+            -- runP_ $
+            --   proc
+            --     "git"
+            --     [ "diff",
+            --       "--no-index",
+            --       "--word-diff=color",
+            --       remoteContentsFp,
+            --       mdFp
+            --     ]
             True -> do
               t <- Data.Time.getCurrentTime
               let stamp =
